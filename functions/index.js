@@ -3,6 +3,8 @@ const express = require('express');
 
 const app = express();
 
+app.set('view engine','ejs')
+
 
 let paymentDutToDate = 15;
 let creditCardCycle = 2;
@@ -29,12 +31,22 @@ const database = firebase.database();
 //     return res.json(snapshot.val())
 //   })
 // })
-
-app.post('/CreateMoneyCell',(req,res) => {
+app.get('/',(req,res) => {
+  res.render('index',{title : 'Express'})
+  
+})
+app.post('/CreateMoneyCell', (req, res) => {
   const date = new Date();
-  const yearLiteral = date.getFullYear() + '년'
-  const MonthLiteral = 1 + date.getMonth()
-  const DayLiteral = date.getDate()
+  let yearToMove, monthToMove, dayToMove;
+  let originalYear = date.getFullYear()
+  let originalMonth = 1 + date.getMonth()
+  let originalDate = date.getDate()
+  let TotalSpreadOut;
+  let holdingSpreadOut;
+  yearToMove = originalYear;
+  monthToMove = originalMonth;
+  dayToMove = originalDate;
+
   let isSpreadOut = req.body.SpentMoneySpreadOut !== '' && req.body.SpentMoneySpreadOut > 0 ? true : false;
   let MoneyInfo = {
     //년 월 일 금액 할부 어디에썼는지 작성자 수정됬는지 timestamp
@@ -48,13 +60,17 @@ app.post('/CreateMoneyCell',(req,res) => {
 
   }
   // 할부일때랑 할부아닐때랑.
-  if(isSpreadOut) {
-    
+  if (isSpreadOut) {
+
 
     //할부 개월수 달아주고
     MoneyInfo.SpreadOut = req.body.SpentMoneySpreadOut
+    TotalSpreadOut = MoneyInfo.SpreadOut;
+    holdingSpreadOut = MoneyInfo.SpreadOut;
     // 할부 개월수 만큼 update해주고
     //원금을 할부 개월수만큼 나눠주고.
+    console.log(typeof (MoneyInfo.SpreadOut));
+
     const DividedMoneyBySpreadOut = parseInt(MoneyInfo.SpentMoney / MoneyInfo.SpreadOut)
     // Object에 넣어주고.
     MoneyInfo.SpreadOutMoney = DividedMoneyBySpreadOut
@@ -63,76 +79,79 @@ app.post('/CreateMoneyCell',(req,res) => {
 
     console.log(`할부 개월수 : ${MoneyInfo.SpreadOut}개월`);
     console.log(`달마다 내야하는 돈  : ${DividedMoneyBySpreadOut}원`)
+
+    for (let index = 0; index < TotalSpreadOut; index++) {
+      
+       if ((originalMonth + index) / 12 !== 0 && (originalMonth + index) % 12 === 0) {
+         yearToMove++
+        database.ref(`${yearToMove}/1/SpreadOutPayment/${dayToMove}`).once('value').then(snapshot => {
+          MoneyInfo.SpreadOut = holdingSpreadOut;
+          if (snapshot.exists()) {
+            snapshot.ref.update({
+              [snapshot.numChildren()]: MoneyInfo
+            })
+          } else {
+            snapshot.ref.update({
+              0: MoneyInfo
+            })
+          }
+          holdingSpreadOut -= 1;
+        }).then(() => {
+          if (holdingSpreadOut === 1) {
+            res.send('<script>alert("Success!!");location.href="./";</script>')
+
+          }
+        })
+       } else {
+        database.ref(`${yearToMove}/${(originalMonth+index)% 12 + 1}/SpreadOutPayment/${dayToMove}`).once('value').then(snapshot => {
+          MoneyInfo.SpreadOut = holdingSpreadOut;
+          if (snapshot.exists()) {
+            snapshot.ref.update({
+              [snapshot.numChildren()]: MoneyInfo
+            })
+          } else {
+            snapshot.ref.update({
+              0: MoneyInfo
+            })
+          }
+          holdingSpreadOut -= 1;
+        }).then(() => {
+          if (holdingSpreadOut === 1) {
+            res.send('<script>alert("Success!!");location.href="./";</script>')
+
+          }
+        })
+       }
+       
+
+    }
+    
     
 
-
-
-    for (let index = 1; index <= MoneyInfo.SpreadOut; index++) {
-      
-      database.ref(`${yearLiteral}/${MonthLiteral+index}월/SpreadOutPayment/${DayLiteral}`).once('value').then(snapshot => {
-        if (snapshot.exists()) {
-          
-
-          snapshot.ref.update({
-            [snapshot.numChildren()]: MoneyInfo
-          })
-        } else {
-          snapshot.ref.update({
-            0: MoneyInfo
-          })
-
-
-        }
-
-
-        res.send('<script>alert("Success!!");location.href="./";</script>')
-
-      }).catch(err => {
-        res.status(400).json({error : err.code})
-      })
-      
-    }
-
-    // res.json(MoneyInfo)
-
   } else {
-    console.log(yearLiteral)
-    console.log(MonthLiteral)
-    database.ref(`${yearLiteral}/${MonthLiteral}월/DirectPayment/${DayLiteral}`).once('value').then(snapshot => {
-      if(snapshot.exists()) {
+    console.log(yearToMove)
+    console.log(monthToMove)
+    database.ref(`${yearToMove}/${monthToMove}/DirectPayment/${dayToMove}`).once('value').then(snapshot => {
+      if (snapshot.exists()) {
         console.log(snapshot.numChildren());
-        
+
         snapshot.ref.update({
           [snapshot.numChildren()]: MoneyInfo
         })
       } else {
         snapshot.ref.update({
-          0 : MoneyInfo
+          0: MoneyInfo
         })
 
-        
+
       }
-      
-      
+
+
       res.send('<script>alert("Success!!");location.href="./";</script>')
-      
+
     })
-
-    // // res.json({
-    // //   year: `${date.getFullYear()}`,
-    // //   month: `${date.getMonth()}`,
-    // //   day: `${date.getDate()}`
-    // // })
-    // res.json(MoneyInfo)
-    // database.ref(`${yearLiteral}/${MonthLiteral}`).update({
-    //   MoneyInfo
-    // })
   }
-  
-  
-  
 
-  
 })
 
 exports.api = functions.https.onRequest(app)
