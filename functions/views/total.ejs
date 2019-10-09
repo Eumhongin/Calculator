@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <title><%= title%></title>
+  <style>
+    p{
+      text-align : center;
+    }
+  </style>
+  <script>
+  // var parser = new JSONParser();
+  let app = '<%= testobj %>'
+  // console.log(app);
+  
+  app = app.replace(/&#34;/g,'"').replace(/\n/g, '<br>')
+
+  // let test = '[{"desc":"동궁찜닭","money":20000},{"desc":"물티슈,비누,까까","money":3000},{"desc":"노보텔 - 우리집","money":5300},{"desc":"피자헛 세일인줄알았는데// 낚여따 ㅠㅠ 맛은 별로..","money":24430},{"desc":"통삼겹살 샀음 된장 과자","money":22750},{"desc":"세제, 뒤집개","money":5000},{"desc":"관록영화반점에서 볶음밥 탕수육 야끼우동 뭇다! 그럭저럭 냠냠","money":19500},{"desc":"배달의민족 갓튀긴치킨","money":13500},{"desc":"카레","money":3000},{"desc":"이니랑 같이가서 모찌과자 4개, 짱구소다음료, 비빔장, 케찹","money":24000},{"desc":"이니랑 오랜만에 코인싱어노래방! 4000(노래방1시간)+물2병","money":5500},{"desc":"코인싱어100원 못적은거랑 택시비4100원","money":4200}]'
+  // console.log(test)
+  // test = JSON.parse(test)
+    $(document).ready(function(){
+      
+      // console.log(test);
+      console.log(JSON.parse(app))
+      
+    })
+    
+  </script>
+</head>
+<body>
+  
+<% for(var i=0; i < obj.length; i++) { %>
+  <p><%= obj[i].desc %></p>
+  <p><%= obj[i].money %></p>
+ 
+<% } %>
+
+<p>Total : <%= sum %> 원</p>
+
+  
+</body>
+</html>

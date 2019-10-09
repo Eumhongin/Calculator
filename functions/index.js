@@ -1,11 +1,19 @@
 const functions = require('firebase-functions');
 const express = require('express');
-
+const tools = require('./module/mod')
+const fire = require('./module/fire')
 const app = express();
+var bodyParser = require('body-parser')
 
-app.set('view engine','ejs')
+// app.set('images', 'images')
+// app.set('views', 'views')
+app.set('view engine', 'ejs')
+app.use('/f', express.static(__dirname + '/module'))
 
-
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({
+  extended: true
+}))
 let paymentDutToDate = 15;
 let creditCardCycle = 2;
 var firebaseConfig = {
@@ -21,6 +29,8 @@ var firebaseConfig = {
 let firebase = require('firebase')
 firebase.initializeApp(firebaseConfig)
 
+
+// tools.setFirebase(firebase)
 const database = firebase.database();
 
 
@@ -31,10 +41,60 @@ const database = firebase.database();
 //     return res.json(snapshot.val())
 //   })
 // })
-app.get('/',(req,res) => {
-  res.render('index',{title : 'Express'})
+
+app.get('/', (req, res) => {
   
+  res.render('index', {
+    title: 'Express',
+    
+  })
+  // fire.displayFirebase(database)
+
 })
+
+
+
+
+
+app.get('/total',(req,res) => {
+  let objs = [];
+  let sum = 0;
+  database.ref('2019').once('value').then((snapshot) => {
+    snapshot.forEach((month)=> {
+      month.forEach((payment)=>{
+        payment.forEach((day) => {
+          // console.log(items.val());
+          day.forEach((items) => {
+            objs.push({
+              desc: items.val().SpentMoneyDescription,
+              money: parseInt(items.val().SpentMoney)
+            })
+            sum += parseInt(items.val().SpentMoney)
+          })
+      
+        })
+      })
+    })
+    return true
+  }).then(() => {
+    // return true
+ 
+
+    console.log(jsFriendlyJSONStringify(objs))
+    return res.render('total', {
+      title: 'Express',
+      obj: objs,
+      testobj: jsFriendlyJSONStringify(objs),
+      sum : sum
+
+    })
+  }).catch(err => {
+    return res.json({err : err.code})
+  })
+})
+
+
+
 app.post('/CreateMoneyCell', (req, res) => {
   const date = new Date();
   let yearToMove, monthToMove, dayToMove;
@@ -81,11 +141,11 @@ app.post('/CreateMoneyCell', (req, res) => {
     console.log(`달마다 내야하는 돈  : ${DividedMoneyBySpreadOut}원`)
 
     for (let index = 0; index < TotalSpreadOut; index++) {
-      
-       if ((originalMonth + index) / 12 !== 0 && (originalMonth + index) % 12 === 0) {
-         yearToMove++
+
+      if ((originalMonth + index) / 12 !== 0 && (originalMonth + index) % 12 === 0) {
+        yearToMove++
         database.ref(`${yearToMove}/1/SpreadOutPayment/${dayToMove}`).once('value').then(snapshot => {
-          MoneyInfo.SpreadOut = holdingSpreadOut;
+          MoneyInfo.SpreadOut = holdingSpreadOut-1;
           if (snapshot.exists()) {
             snapshot.ref.update({
               [snapshot.numChildren()]: MoneyInfo
@@ -96,62 +156,86 @@ app.post('/CreateMoneyCell', (req, res) => {
             })
           }
           holdingSpreadOut -= 1;
+          return true;
         }).then(() => {
           if (holdingSpreadOut === 1) {
             res.send('<script>alert("Success!!");location.href="./";</script>')
 
           }
+          return true;
+        }).catch(err => {
+          return res.status(400).json({
+            err: err.code
+          })
         })
-       } else {
+      } else {
         database.ref(`${yearToMove}/${(originalMonth+index)% 12 + 1}/SpreadOutPayment/${dayToMove}`).once('value').then(snapshot => {
-          MoneyInfo.SpreadOut = holdingSpreadOut;
-          if (snapshot.exists()) {
-            snapshot.ref.update({
-              [snapshot.numChildren()]: MoneyInfo
-            })
-          } else {
-            snapshot.ref.update({
-              0: MoneyInfo
-            })
-          }
-          holdingSpreadOut -= 1;
-        }).then(() => {
-          if (holdingSpreadOut === 1) {
-            res.send('<script>alert("Success!!");location.href="./";</script>')
+            MoneyInfo.SpreadOut = holdingSpreadOut-1;
+            if (snapshot.exists()) {
+              snapshot.ref.update({
+                [snapshot.numChildren()]: MoneyInfo
+              })
+            } else {
+              snapshot.ref.update({
+                0: MoneyInfo
+              })
+            }
+            holdingSpreadOut -= 1;
+            return true;
+          }).then(() => {
+            if (holdingSpreadOut === 1) {
+              res.send('<script>alert("Success!!");location.href="./";</script>')
 
-          }
-        })
-       }
-       
+            }
+            return true;
+          })
+          .catch(err => {
+            return res.status(400).json({
+              err: err.code
+            })
+          })
+      }
+
 
     }
-    
-    
+
+
 
   } else {
     console.log(yearToMove)
     console.log(monthToMove)
     database.ref(`${yearToMove}/${monthToMove}/DirectPayment/${dayToMove}`).once('value').then(snapshot => {
-      if (snapshot.exists()) {
-        console.log(snapshot.numChildren());
+        if (snapshot.exists()) {
+          console.log(snapshot.numChildren());
 
-        snapshot.ref.update({
-          [snapshot.numChildren()]: MoneyInfo
+          snapshot.ref.update({
+            [snapshot.numChildren()]: MoneyInfo
+          })
+        } else {
+          snapshot.ref.update({
+            0: MoneyInfo
+          })
+
+
+        }
+
+
+        return res.send('<script>alert("Success!!");location.href="./";</script>')
+
+      })
+      .catch(err => {
+        return res.status(400).json({
+          err: err.code
         })
-      } else {
-        snapshot.ref.update({
-          0: MoneyInfo
-        })
-
-
-      }
-
-
-      res.send('<script>alert("Success!!");location.href="./";</script>')
-
-    })
+      })
   }
 
 })
+
+
+function jsFriendlyJSONStringify(s) {
+  return JSON.stringify(s).
+    replace(/\\r/g, ' ')
+}
 
 exports.api = functions.https.onRequest(app)
