@@ -52,8 +52,11 @@ app.get('/', (req, res) => {
 
 })
 
-
-
+app.get('/helloworld',(req,res,next) => {
+ res.json({
+   msg : "helloworld!!"
+ })
+})
 
 
 app.get('/total',(req,res) => {

@@ -8,7 +8,7 @@
     ]
   },
   "hosting": {
-    "public": "public",
+    "public": "public/application/build",
     "rewrites" : [{
       "source" : "/**",
       "function" : "api"
